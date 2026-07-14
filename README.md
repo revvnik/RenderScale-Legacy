@@ -1,5 +1,6 @@
-# RenderScale complete development archive
-
+# RenderScale legacy backport
+# DISCLAIMER
+This backport was made with GPT 5.6 Sol. Though being a programmer, I am not experienced with Minecraft modding. Maybe someday I will learn Java and backport it myself, but this will have to do.
 This archive contains two deliberately separate projects.
 
 ## `legacy-1.7.10`
