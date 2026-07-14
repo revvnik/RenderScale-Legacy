@@ -1,0 +1,118 @@
+plugins {
+    id 'java'
+    id 'idea'
+}
+
+group = 'dev.zelo.renderscale'
+version = '1.0.1'
+
+base {
+    archivesName = 'RenderScale-Legacy-1.7.10'
+}
+
+repositories {
+    // All compile dependencies are bundled in deps/ for reliable 1.7.10 builds.
+    flatDir {
+        dirs 'deps'
+    }
+}
+
+dependencies {
+    compileOnly files(
+        'deps/forge-universal.jar',
+        'deps/launchwrapper.jar',
+        'deps/asm-all.jar',
+        'deps/lwjgl.jar'
+    )
+}
+
+java {
+    sourceCompatibility = JavaVersion.VERSION_1_7
+    targetCompatibility = JavaVersion.VERSION_1_7
+}
+
+def legacyClassesDirectory = layout.buildDirectory.dir('classes/java/main')
+
+// Current JDK javac releases no longer emit Java 7 bytecode. The bundled
+// Eclipse compiler does, so Gradle delegates production compilation to it.
+tasks.named('compileJava') {
+    enabled = false
+}
+
+tasks.register('compileLegacy', JavaExec) {
+    group = 'build'
+    description = 'Compiles the Forge 1.7.10 mod as Java 7 bytecode with ECJ.'
+
+    inputs.files(sourceSets.main.java)
+    inputs.files(configurations.compileClasspath)
+    outputs.dir(legacyClassesDirectory)
+
+    classpath = files('deps/ecj.jar')
+    mainClass = 'org.eclipse.jdt.internal.compiler.batch.Main'
+
+    doFirst {
+        File output = legacyClassesDirectory.get().asFile
+        output.mkdirs()
+        args = [
+            '-1.7',
+            '-proc:none',
+            '-d', output.absolutePath,
+            '-classpath', configurations.compileClasspath.asPath
+        ] + sourceSets.main.java.files.collect { it.absolutePath }.sort()
+    }
+}
+
+sourceSets.main.output.classesDirs.setFrom(legacyClassesDirectory)
+
+tasks.named('classes') {
+    dependsOn tasks.named('compileLegacy')
+}
+
+tasks.named('jar') {
+    dependsOn tasks.named('compileLegacy')
+    archiveFileName = 'RenderScale-Legacy-1.7.10-1.0.1.jar'
+
+    manifest {
+        attributes(
+            'Manifest-Version': '1.0',
+            'FMLCorePlugin': 'dev.zelo.renderscale.legacy.RenderScaleLoadingPlugin',
+            'FMLCorePluginContainsFMLMod': 'true'
+        )
+    }
+
+    from('LICENSE')
+    from('README.md')
+}
+
+tasks.register('verifyJar') {
+    group = 'verification'
+    description = 'Checks the required Forge/coremod files in the built JAR.'
+    dependsOn tasks.named('jar')
+
+    doLast {
+        File artifact = tasks.named('jar').get().archiveFile.get().asFile
+        List<String> required = [
+            'META-INF/MANIFEST.MF',
+            'mcmod.info',
+            'dev/zelo/renderscale/legacy/RenderScaleLoadingPlugin.class',
+            'dev/zelo/renderscale/legacy/EntityRendererTransformer.class',
+            'dev/zelo/renderscale/legacy/RenderScaleRuntime.class',
+            'dev/zelo/renderscale/legacy/RenderScaleLegacyMod.class'
+        ]
+        java.util.zip.ZipFile zip = new java.util.zip.ZipFile(artifact)
+        List<String> missing
+        try {
+            missing = required.findAll { zip.getEntry(it) == null }
+        } finally {
+            zip.close()
+        }
+        if (!missing.isEmpty()) {
+            throw new GradleException("Built JAR is missing: ${missing.join(', ')}")
+        }
+        println "Verified: ${artifact}"
+    }
+}
+
+tasks.named('build') {
+    dependsOn tasks.named('verifyJar')
+}

@@ -1,0 +1,14 @@
+[
+  {
+    "modid": "renderscale",
+    "name": "RenderScale Legacy",
+    "description": "Render the 3D world at a configurable resolution without scaling the HUD.",
+    "version": "1.0.1",
+    "mcversion": "1.7.10",
+    "url": "https://github.com/Zolo101/RenderScale",
+    "authorList": ["Zelo101", "OpenAI backport"],
+    "credits": "A Forge 1.7.10 backport of RenderScale's separate world-target architecture.",
+    "requiredMods": [],
+    "dependencies": []
+  }
+]
